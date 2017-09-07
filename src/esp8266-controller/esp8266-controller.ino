@@ -80,6 +80,21 @@ void reconnect() {
   }
 }
 
+void sendAliveMessage(long timeNow) {
+  IPAddress myIp = WiFi.localIP();
+  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", chipId, timeNow, WiFi.RSSI(), myIp[0],myIp[1],myIp[2],myIp[3]);
+  String topic = String(MQTT_TOPIC_STATUS_BASE);
+  topic.concat("/alive");
+  Serial.print("Publish message to ");
+  Serial.print(topic.c_str());
+  Serial.print(": ");
+  Serial.println(genericString);    
+  client.publish(topic.c_str(), genericString);
+  digitalWrite(STATUSLED, OUTPUT_HIGH);
+  delay(100);
+  digitalWrite(STATUSLED, OUTPUT_LOW);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(10);
@@ -124,19 +139,8 @@ void loop() {
   client.loop();
   long now = millis();
   if (abs(now - lastTimeStatusToMqtt) > 5000) {
-    IPAddress myIp = WiFi.localIP();
     lastTimeStatusToMqtt = now;
-    snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", chipId, now, WiFi.RSSI(), myIp[0],myIp[1],myIp[2],myIp[3]);
-    String topic = String(MQTT_TOPIC_STATUS_BASE);
-    topic.concat("/alive");
-    Serial.print("Publish message to ");
-    Serial.print(topic.c_str());
-    Serial.print(": ");
-    Serial.println(genericString);    
-    client.publish(topic.c_str(), genericString);
-    digitalWrite(STATUSLED, OUTPUT_HIGH);
-    delay(100);
-    digitalWrite(STATUSLED, OUTPUT_LOW);
+    sendAliveMessage(now);
   } else {
     delay(100);
   }
