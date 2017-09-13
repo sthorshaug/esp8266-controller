@@ -27,6 +27,7 @@ const int STATUSLED = BUILTIN_LED;
 
 // My public variables
 WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;
