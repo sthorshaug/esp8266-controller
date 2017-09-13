@@ -27,7 +27,6 @@ const int STATUSLED = BUILTIN_LED;
 
 // My public variables
 WiFiClient wifiClient;
-PubSubClient client(wifiClient);
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;
@@ -48,6 +47,9 @@ void flashLed(int ledPin, int numberOfTimes, int waitTime) {
   }
 }
 
+/*
+ * Callback for new MQTT data
+ */
 void mqttDataCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -59,19 +61,19 @@ void mqttDataCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 }
 
-void reconnect() {
+void mqttReconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     String clientId = String("ESP8266 ");
     clientId.concat(chipId);
     // Attempt to connect
-    if (client.connect("ESP8266 Client")) {
+    if (mqttClient.connect("ESP8266 Client")) {
       Serial.println("connected");      
-      client.subscribe(MQTT_TOPIC_SUBSCRIBE);
+      mqttClient.subscribe(MQTT_TOPIC_SUBSCRIBE);
     } else {
       Serial.print("failed, rc=");
-      Serial.print(client.state());
+      Serial.print(mqttClient.state());
       Serial.println(" try again in 5 seconds");
       // Flash light
       flashLed(STATUSLED, 3, 200);
@@ -89,7 +91,7 @@ void sendAliveMessage(long timeNow) {
   Serial.print(topic.c_str());
   Serial.print(": ");
   Serial.println(genericString);    
-  client.publish(topic.c_str(), genericString);
+  mqttClient.publish(topic.c_str(), genericString);
   digitalWrite(STATUSLED, OUTPUT_HIGH);
   delay(100);
   digitalWrite(STATUSLED, OUTPUT_LOW);
@@ -127,18 +129,18 @@ void setup() {
   Serial.println(WiFi.localIP());
   Serial.println("");
   Serial.println("Start MQTT");
-  client.setServer(MQTT_SERVER, 1883);
-  client.setCallback(mqttDataCallback);
+  mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setCallback(mqttDataCallback);
 
 }
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
+  if (!mqttClient.connected()) {
+    mqttReconnect();
   }
-  client.loop();
+  mqttClient.loop();
   long now = millis();
-  if (abs(now - lastTimeStatusToMqtt) > 5000) {
+  if (abs(now - lastTimeStatusToMqtt) > 10000) {
     lastTimeStatusToMqtt = now;
     sendAliveMessage(now);
   } else {
