@@ -7,14 +7,15 @@
  */
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include "TimeController.h"
 
 /*
  * Parameters to change
  * Change these parameters into your values
  */
-const char* NETWORK_SSID = "network_ssid";
-const char* NETWORK_PASSWORD = "network_password";
-const char* MQTT_SERVER = "ip_of_mqtt_server";
+const char* NETWORK_SSID = "ITsjefen OpenZone";
+const char* NETWORK_PASSWORD = "";
+const char* MQTT_SERVER = "10.254.200.49";
 const char* MQTT_TOPIC_STATUS_BASE = "topic_to_use_as_base";
 const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all sub topics
 
@@ -28,6 +29,7 @@ const int STATUSLED = BUILTIN_LED;
 // My public variables
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
+TimeController timeController;
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;
@@ -132,7 +134,7 @@ void setup() {
   Serial.println("Start MQTT");
   mqttClient.setServer(MQTT_SERVER, 1883);
   mqttClient.setCallback(mqttDataCallback);
-
+  timeController.setup();
 }
 
 void loop() {
@@ -140,6 +142,7 @@ void loop() {
     mqttReconnect();
   }
   mqttClient.loop();
+  timeController.loop();
   long now = millis();
   if (abs(now - lastTimeStatusToMqtt) > 10000) {
     lastTimeStatusToMqtt = now;
