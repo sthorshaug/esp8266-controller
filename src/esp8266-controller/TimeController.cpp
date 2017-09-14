@@ -40,10 +40,9 @@ unsigned long sendNTPpacket(IPAddress& address)
 }
 
 void printEpoch(unsigned long epoch) {
-  // now convert NTP time into everyday time:
-  //Serial.print("Unix time = ");  
-  //Serial.println(epoch);
-
+  Serial.print("Unix time ");
+  Serial.print(epoch);
+  Serial.print("  ");
   // print the hour, minute and second:
   Serial.print("The UTC time is ");       // UTC is the time at Greenwich Meridian (GMT)
   Serial.print((epoch  % 86400L) / 3600); // print the hour (86400 equals secs per day)
@@ -78,14 +77,13 @@ void TimeController::setup() {
 }
 
 void TimeController::loop() {
-  unsigned long now = myMillis();
-  if (abs(now - this->lastQuery) > 10000) {
-  //if (this->lastQuery == 0) {  
+  unsigned long now = millis();
+  if (abs(now - this->lastQuery) > 30000 || this->lastQuery == 0) {
     this->lastQuery = now;
     this->queryNtpTime();
   }
   
-  this->checkWrappedMillis(now);  
+  this->checkWrappedMillis(myMillis());  
 }
 
 void TimeController::checkWrappedMillis(unsigned long now) {
@@ -108,26 +106,38 @@ int TimeController::millisSinceEpoch() {
 }
 
 unsigned long TimeController::currentEpoch() {
-  unsigned long epoch = this->lastEpoch+this->millisSinceEpoch()/1000;
-  //printEpoch(epoch);
-  return epoch;
+  if(this->lastEpoch == 0) {
+    return 0;
+  }
+  return (unsigned long)(this->lastEpoch+this->millisSinceEpoch()/1000);
 }
 
 void TimeController::queryNtpTime()
 {
+  int counter = 0;
   //get a random server from the pool
   WiFi.hostByName(ntpServerName, timeServerIP); 
-
+  udp.flush();
   sendNTPpacket(timeServerIP); // send an NTP packet to a time server
-  // wait to see if a reply is available
-  delay(500);
+  // wait to see if a reply is available  
+  int cb = 0;
+  Serial.print("Wait for response");
+  while(counter < 10) {
+    counter++;
+    cb = udp.parsePacket();
+    if(!cb) {
+      Serial.print(".");
+      delay(100);
+    } else {
+      counter = 100;
+    }
+  }
   
-  int cb = udp.parsePacket();
   if (!cb) {
     Serial.println("no packet yet");
   }
   else {
-    Serial.print("packet received, length=");
+    Serial.print(" packet received, length=");
     Serial.println(cb);
     // We've received a packet, read the data from it
     udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
@@ -139,10 +149,7 @@ void TimeController::queryNtpTime()
     unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
     // combine the four bytes (two words) into a long integer
     // this is NTP time (seconds since Jan 1 1900):
-    unsigned long secsSince1900 = highWord << 16 | lowWord;
-    Serial.print("Seconds since Jan 1 1900 = " );
-    Serial.println(secsSince1900);
-
+    unsigned long secsSince1900 = highWord << 16 | lowWord;    
     // now convert NTP time into everyday time:
     // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
     const unsigned long seventyYears = 2208988800UL;
@@ -150,14 +157,9 @@ void TimeController::queryNtpTime()
     unsigned long epoch = secsSince1900 - seventyYears;
     printEpoch(epoch);
 
-    Serial.print(epoch);
-    Serial.print(" vs estimated ");
-    Serial.println(this->currentEpoch());
-
     this->lastEpoch = epoch;
     this->millisAtEpoch = myMillis();
-    this->wrappedMillis = 0;
-    
+    this->wrappedMillis = 0;    
   }
 }
 

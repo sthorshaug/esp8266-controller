@@ -87,7 +87,7 @@ void mqttReconnect() {
 
 void sendAliveMessage(long timeNow) {
   IPAddress myIp = WiFi.localIP();
-  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", chipId, timeNow, WiFi.RSSI(), myIp[0],myIp[1],myIp[2],myIp[3]);
+  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", chipId, timeController.currentEpoch(), WiFi.RSSI(), myIp[0],myIp[1],myIp[2],myIp[3]);
   String topic = String(MQTT_TOPIC_STATUS_BASE);
   topic.concat("/alive");
   Serial.print("Publish message to ");
@@ -149,6 +149,6 @@ void loop() {
     sendAliveMessage(now);
   } else {
     delay(100);
-  }
+  }  
 }
 
