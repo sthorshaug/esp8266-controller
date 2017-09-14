@@ -1,3 +1,7 @@
+/*
+ * A simple class for keeping the current time
+ * Queries a NTP server regulary and keeps track of time since last query
+ */
 #include "TimeController.h"
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
@@ -10,6 +14,10 @@ const int NTP_PACKET_SIZE = 48; // NTP time stamp is in the first 48 bytes of th
 byte packetBuffer[ NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
 WiFiUDP udp;
 
+/*
+ * Wrapper for millis(). Mainly used for wrap after approx 65 secs.
+ * Consider to remove at a later stage
+ */
 unsigned long myMillis() {
   return (millis() % 65535);
 }
