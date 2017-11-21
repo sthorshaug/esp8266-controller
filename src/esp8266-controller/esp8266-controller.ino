@@ -7,7 +7,9 @@
  */
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include "myconstants.h"
 #include "TimeController.h"
+#include "MessageHandler.h"
 
 /*
  * Parameters to change
@@ -19,17 +21,13 @@ const char* MQTT_SERVER = "10.254.200.49";
 const char* MQTT_TOPIC_STATUS_BASE = "topic_to_use_as_base";
 const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all sub topics
 
-// The outputs are reversed on my ESP8266
-const int OUTPUT_HIGH = LOW;
-const int OUTPUT_LOW = HIGH;
 
-// Handy constants
-const int STATUSLED = BUILTIN_LED;
 
 // My public variables
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 TimeController timeController;
+MessageHandler messageHandler(mqttClient);
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;
@@ -54,14 +52,7 @@ void flashLed(int ledPin, int numberOfTimes, int waitTime) {
  * Callback for new MQTT data
  */
 void mqttDataCallback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    char receivedChar = (char)payload[i];
-    Serial.print(receivedChar);
-  }
-  Serial.println();
+  messageHandler.handleRequest(topic, payload, length);
 }
 
 void mqttReconnect() {
@@ -135,6 +126,7 @@ void setup() {
   mqttClient.setServer(MQTT_SERVER, 1883);
   mqttClient.setCallback(mqttDataCallback);
   timeController.setup();
+  messageHandler.setup();
 }
 
 void loop() {
