@@ -16,7 +16,7 @@ WiFiUDP udp;
 
 /*
  * Wrapper for millis(). Mainly used for wrap after approx 65 secs.
- * Consider to remove at a later stage
+ * Consider to remove at a later stage.
  */
 unsigned long myMillis() {
   return (millis() % 65535);
