@@ -31,20 +31,7 @@ char genericString[150];
 String chipIdAsString;
 const char *chipId;
 
-/*
- * Flash a led a given number of times
- */
-void flashLed(int ledPin, int numberOfTimes, int waitTime) {
-  int i;
-  for(i=0; i<numberOfTimes; i++) {
-    digitalWrite(ledPin, OUTPUT_HIGH);
-    delay(waitTime);
-    digitalWrite(ledPin, OUTPUT_LOW);
-    if(i<numberOfTimes-1) {
-      delay(waitTime);
-    }
-  }
-}
+
 
 /*
  * Callback for new MQTT data
@@ -67,8 +54,8 @@ void mqttReconnect() {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
       Serial.println(" try again in 5 seconds");
-      // Flash light
-      flashLed(STATUSLED, 3, 200);
+      // Flash onboard LED
+      messageHandler.flashLed(STATUSLED, 3, 200);
       delay(4000);
     }
   }

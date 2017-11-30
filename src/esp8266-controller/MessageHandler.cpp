@@ -20,6 +20,7 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
   char payload[100];
   char dbgOut[100];
   MessageHandler::MyRequest request;
+  bool status = false;
   
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -48,11 +49,13 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
 
   switch(request.req) {
     REQ_ToggleOnOff:
-      this->runToggleOnOff(&request);
+      status = this->runToggleOnOff(&request);
       break;
     default:
       this->sendMqttResponse(&request, false, "Unknown request");
   }
+
+  this->flashLed(STATUSLED, status ? 2 : 5, 100);
 }
 
 bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed) {
@@ -86,8 +89,8 @@ MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req)
   return REQ_None;
 }
 
-void MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req) {
-  
+bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req) {
+  return true;
 }
 
 void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text) {
@@ -101,5 +104,20 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   Serial.print(": ");
   Serial.println(myString);    
   this->mqtt.publish(topic.c_str(), myString);
+}
+
+/*
+ * Flash a led a given number of times
+ */
+void MessageHandler::flashLed(int ledPin, int numberOfTimes, int waitTime) {
+  int i;
+  for(i=0; i<numberOfTimes; i++) {
+    digitalWrite(ledPin, OUTPUT_HIGH);
+    delay(waitTime);
+    digitalWrite(ledPin, OUTPUT_LOW);
+    if(i<numberOfTimes-1) {
+      delay(waitTime);
+    }
+  }
 }
 

@@ -21,11 +21,12 @@ class MessageHandler {
     };
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);
-    void runToggleOnOff(MessageHandler::MyRequest *req);
+    bool runToggleOnOff(MessageHandler::MyRequest *req);
     void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text);
   public:
     MessageHandler(PubSubClient mqtt, const char* mqttBaseTopic);
     void setup();
     void handleRequest(char* topic, byte* payloadAsBytes, unsigned int length);
+    void flashLed(int ledPin, int numberOfTimes, int waitTime);
 };
 #endif
