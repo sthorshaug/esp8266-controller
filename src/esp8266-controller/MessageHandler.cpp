@@ -3,9 +3,10 @@
 
 
 
-MessageHandler::MessageHandler(PubSubClient mqtt, const char *mqttBaseTopic) {
+MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, TimeController *timeController) {
   this->mqtt = mqtt;
   this->mqttBaseTopic = mqttBaseTopic;
+  this->timeController = timeController;
   for(int i=0; i<MAX_PINNUMBER; i++) {
     this->myIOs[i].active = false;
   }
@@ -135,15 +136,15 @@ bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req, char *text) 
 
 void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text) {
   char myString[151];
-  snprintf (myString, 150, "{\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"}", 
-  req->req, req->pin, req->waittime, status ? "true" : "false", text);
+  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"}", 
+  this->timeController->currentEpoch(), req->req, req->pin, req->waittime, status ? "true" : "false", text);
   String topic = String(this->mqttBaseTopic);
   topic.concat("/response");
   Serial.print("Publish message to ");
   Serial.print(topic.c_str());
   Serial.print(": ");
   Serial.println(myString);    
-  this->mqtt.publish(topic.c_str(), myString);
+  this->mqtt->publish(topic.c_str(), myString);
 }
 
 bool MessageHandler::checkPinConfig(int pin, MessageHandler::PinConfig config) {

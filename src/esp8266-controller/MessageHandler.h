@@ -2,6 +2,7 @@
 #define MessageHandler_h
 #include <Arduino.h>
 #include <PubSubClient.h>
+#include "TimeController.h"
 #include "myconstants.h"
 
 
@@ -30,9 +31,10 @@ class MessageHandler {
       PinConfig config;
     };
     
-    PubSubClient mqtt;
+    PubSubClient *mqtt;
     const char *mqttBaseTopic;
     MyIOs myIOs[MAX_PINNUMBER+1];
+    TimeController *timeController;
     
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);
@@ -40,7 +42,7 @@ class MessageHandler {
     void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text);
     bool checkPinConfig(int pin, MessageHandler::PinConfig config);
   public:
-    MessageHandler(PubSubClient mqtt, const char* mqttBaseTopic);
+    MessageHandler(PubSubClient *mqtt, const char* mqttBaseTopic, TimeController *timeController);
     void setup();
     bool assignPinConfiguration(int pin, MessageHandler::PinConfig config);
     void handleRequest(char* topic, byte* payloadAsBytes, unsigned int length);

@@ -25,7 +25,7 @@ const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 TimeController timeController;
-MessageHandler messageHandler(mqttClient, MQTT_TOPIC_STATUS_BASE);
+MessageHandler messageHandler(&mqttClient, MQTT_TOPIC_STATUS_BASE, &timeController);
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;
