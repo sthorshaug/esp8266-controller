@@ -17,17 +17,15 @@
  */
 const char* NETWORK_SSID = "ITsjefen OpenZone";
 const char* NETWORK_PASSWORD = "";
-const char* MQTT_SERVER = "10.254.200.49";
+const char* MQTT_SERVER = "10.254.200.156";
 const char* MQTT_TOPIC_STATUS_BASE = "topic_to_use_as_base";
 const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all sub topics
-
-
 
 // My public variables
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 TimeController timeController;
-MessageHandler messageHandler(mqttClient);
+MessageHandler messageHandler(mqttClient, MQTT_TOPIC_STATUS_BASE);
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;

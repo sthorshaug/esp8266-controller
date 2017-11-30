@@ -3,8 +3,9 @@
 
 
 
-MessageHandler::MessageHandler(PubSubClient mqtt) {
+MessageHandler::MessageHandler(PubSubClient mqtt, const char *mqttBaseTopic) {
   this->mqtt = mqtt;
+  this->mqttBaseTopic = mqttBaseTopic;
 }
 
 void MessageHandler::setup() {
@@ -37,6 +38,21 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
   }
   snprintf(dbgOut, 100, "Req %d, pin %d, waittime %d", request.req, request.pin, request.waittime);
   Serial.println(dbgOut);
+  if(request.waittime < 0) {
+    Serial.println("Negative waittime - aborting request");
+    return;
+  }
+  if(request.waittime > 5000) {
+    Serial.println("Waittime changed to 5000ms");
+  }
+
+  switch(request.req) {
+    REQ_ToggleOnOff:
+      this->runToggleOnOff(&request);
+      break;
+    default:
+      this->sendMqttResponse(&request, false, "Unknown request");
+  }
 }
 
 bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed) {
@@ -68,5 +84,22 @@ MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req)
     return REQ_ToggleOnOff;
   }
   return REQ_None;
+}
+
+void MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req) {
+  
+}
+
+void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text) {
+  char myString[151];
+  snprintf (myString, 150, "{\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"}", 
+  req->req, req->pin, req->waittime, status ? "true" : "false", text);
+  String topic = String(this->mqttBaseTopic);
+  topic.concat("/response");
+  Serial.print("Publish message to ");
+  Serial.print(topic.c_str());
+  Serial.print(": ");
+  Serial.println(myString);    
+  this->mqtt.publish(topic.c_str(), myString);
 }
 

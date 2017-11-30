@@ -8,6 +8,7 @@
 class MessageHandler {
   private:    
     PubSubClient mqtt;
+    const char *mqttBaseTopic;
 
     enum MyRequestType {
       REQ_None,
@@ -20,8 +21,10 @@ class MessageHandler {
     };
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);
+    void runToggleOnOff(MessageHandler::MyRequest *req);
+    void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text);
   public:
-    MessageHandler(PubSubClient mqtt);
+    MessageHandler(PubSubClient mqtt, const char* mqttBaseTopic);
     void setup();
     void handleRequest(char* topic, byte* payloadAsBytes, unsigned int length);
 };
