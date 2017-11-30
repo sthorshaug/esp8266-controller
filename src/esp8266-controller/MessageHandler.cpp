@@ -1,15 +1,46 @@
 #include "MessageHandler.h"
-#include "myconstants.h"
+
 
 
 
 MessageHandler::MessageHandler(PubSubClient mqtt, const char *mqttBaseTopic) {
   this->mqtt = mqtt;
   this->mqttBaseTopic = mqttBaseTopic;
+  for(int i=0; i<MAX_PINNUMBER; i++) {
+    this->myIOs[i].active = false;
+  }
+}
+
+bool MessageHandler::assignPinConfiguration(int pin, MessageHandler::PinConfig config) {
+  if(pin < 0 || pin > MAX_PINNUMBER) {
+    Serial.println("Invalid pin number");
+    return false;
+  }
+  this->myIOs[pin].active = true;
+  this->myIOs[pin].config = config;
 }
 
 void MessageHandler::setup() {
-  // todo : Configure outputs
+  for(int i=0; i<MAX_PINNUMBER; i++) {
+    if(!this->myIOs[i].active) continue;
+    Serial.print("Setting pin ");
+    Serial.print(i);
+    switch(this->myIOs[i].config) {
+      case PINCONFIG_DO:
+        Serial.println(" as output");
+        pinMode(i, OUTPUT);
+        digitalWrite(i, OUTPUT_LOW);
+        break;
+      case PINCONFIG_DI:
+        Serial.println(" as input");
+        pinMode(i, INPUT);
+        break;
+      default:
+        // todo Analog IO not supported yet
+        Serial.println(" nothing. Not supported");
+        break;
+    }
+  }
 }
 
 /*
@@ -47,14 +78,15 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
     Serial.println("Waittime changed to 5000ms");
   }
 
+  dbgOut[0] = 0;
   switch(request.req) {
     case REQ_ToggleOnOff:
-      status = this->runToggleOnOff(&request);
+      status = this->runToggleOnOff(&request, dbgOut);
       break;
     default:
-      this->sendMqttResponse(&request, false, "Unknown request");
+      strcpy(dbgOut, "Unknown request");
   }
-
+  this->sendMqttResponse(&request, status, dbgOut);
   this->flashLed(STATUSLED, status ? 2 : 5, 100);
 }
 
@@ -89,7 +121,15 @@ MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req)
   return REQ_None;
 }
 
-bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req) {
+bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req, char *text) {
+  if(!this->checkPinConfig(req->pin, PINCONFIG_DO)) {
+    strcpy(text, "Pin is not configured for output");
+    return false;
+  }
+  digitalWrite(req->pin, OUTPUT_HIGH);
+  delay(req->waittime);
+  digitalWrite(req->pin, OUTPUT_LOW);
+  strcpy(text, "Success");
   return true;
 }
 
@@ -104,6 +144,13 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   Serial.print(": ");
   Serial.println(myString);    
   this->mqtt.publish(topic.c_str(), myString);
+}
+
+bool MessageHandler::checkPinConfig(int pin, MessageHandler::PinConfig config) {
+  if(pin > MAX_PINNUMBER || pin < 0) {
+    return false;
+  }
+  return (this->myIOs[pin].active && this->myIOs[pin].config == config);
 }
 
 /*

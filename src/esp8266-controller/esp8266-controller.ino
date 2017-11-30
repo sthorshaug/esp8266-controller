@@ -76,6 +76,13 @@ void sendAliveMessage(long timeNow) {
   digitalWrite(STATUSLED, OUTPUT_LOW);
 }
 
+/**
+ * Configure all input and outputs prior to calling messagehandler.setup()
+ */
+void configurePinIO() {
+  messageHandler.assignPinConfiguration(2, MessageHandler::PINCONFIG_DO);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(10);
@@ -111,6 +118,7 @@ void setup() {
   mqttClient.setServer(MQTT_SERVER, 1883);
   mqttClient.setCallback(mqttDataCallback);
   timeController.setup();
+  configurePinIO();
   messageHandler.setup();
 }
 

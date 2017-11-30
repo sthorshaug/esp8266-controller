@@ -8,5 +8,6 @@ const int OUTPUT_LOW = HIGH;
 
 // Handy constants
 const int STATUSLED = BUILTIN_LED;
+const int MAX_PINNUMBER=7; // Largest allowed pinnumber
 
 #endif
