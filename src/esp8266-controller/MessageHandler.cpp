@@ -48,7 +48,7 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
   }
 
   switch(request.req) {
-    REQ_ToggleOnOff:
+    case REQ_ToggleOnOff:
       status = this->runToggleOnOff(&request);
       break;
     default:
