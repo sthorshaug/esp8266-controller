@@ -3,13 +3,17 @@
  * An implemention for controlling and polling an ESP8266 board through mqtt.
  * 
  * @author Steinar Thorshaug
- * @version 1.0.0
  */
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include "myconstants.h"
 #include "TimeController.h"
 #include "MessageHandler.h"
+
+/*
+ * Constants
+ */
+const char* SW_VERSION = "1.0.0.a1";
 
 /*
  * Parameters to change
@@ -21,7 +25,9 @@ const char* MQTT_SERVER = "ipOfMqttServer";
 const char* MQTT_TOPIC_STATUS_BASE = "topic_to_use_as_base";
 const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all sub topics
 
-// My public variables
+/*
+ * Our framework
+ */
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 TimeController timeController;
@@ -32,7 +38,6 @@ String chipIdAsString;
 const char *chipId;
 
 
-
 /*
  * Callback for new MQTT data
  */
@@ -40,6 +45,9 @@ void mqttDataCallback(char* topic, byte* payload, unsigned int length) {
   messageHandler.handleRequest(topic, payload, length);
 }
 
+/*
+ * Assert that we are connected to the MQTT broker
+ */
 void mqttReconnect() {
   // Loop until we're reconnected
   while (!mqttClient.connected()) {
@@ -63,7 +71,8 @@ void mqttReconnect() {
 
 void sendAliveMessage(long timeNow) {
   IPAddress myIp = WiFi.localIP();
-  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", chipId, timeController.currentEpoch(), WiFi.RSSI(), myIp[0],myIp[1],myIp[2],myIp[3]);
+  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\",\"version\":\"%s\"}", 
+    chipId, timeController.currentEpoch(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3], SW_VERSION);
   String topic = String(MQTT_TOPIC_STATUS_BASE);
   topic.concat("/alive");
   Serial.print("Publish message to ");
