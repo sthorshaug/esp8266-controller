@@ -15,9 +15,9 @@
  * Parameters to change
  * Change these parameters into your values
  */
-const char* NETWORK_SSID = "ITsjefen OpenZone";
-const char* NETWORK_PASSWORD = "";
-const char* MQTT_SERVER = "10.254.200.156";
+const char* NETWORK_SSID = "NetworkSSID";
+const char* NETWORK_PASSWORD = "NetworkPassword";
+const char* MQTT_SERVER = "ipOfMqttServer";
 const char* MQTT_TOPIC_STATUS_BASE = "topic_to_use_as_base";
 const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all sub topics
 
@@ -80,7 +80,7 @@ void sendAliveMessage(long timeNow) {
  * Configure all input and outputs prior to calling messagehandler.setup()
  */
 void configurePinIO() {
-  messageHandler.assignPinConfiguration(2, MessageHandler::PINCONFIG_DO);
+  messageHandler.assignPinConfiguration(4, MessageHandler::PINCONFIG_DO);
 }
 
 void setup() {
