@@ -1,8 +1,14 @@
+/*
+ * MessageHandler
+ * Decode and handle incoming MQTT messages
+ * 
+ * @author Steinar Thorshaug
+ */
 #include "MessageHandler.h"
 
-
-
-
+/**
+ * Constructor
+ */
 MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, TimeController *timeController) {
   this->mqtt = mqtt;
   this->mqttBaseTopic = mqttBaseTopic;
@@ -12,6 +18,10 @@ MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, Ti
   }
 }
 
+/**
+ * Configure a specific pin
+ * Must be performed prior to running
+ */
 bool MessageHandler::assignPinConfiguration(int pin, MessageHandler::PinConfig config) {
   if(pin < 0 || pin > MAX_PINNUMBER) {
     Serial.println("Invalid pin number");
@@ -21,6 +31,9 @@ bool MessageHandler::assignPinConfiguration(int pin, MessageHandler::PinConfig c
   this->myIOs[pin].config = config;
 }
 
+/**
+ * Configure all pins
+ */
 void MessageHandler::setup() {
   for(int i=0; i<MAX_PINNUMBER; i++) {
     if(!this->myIOs[i].active) continue;
@@ -91,6 +104,9 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
   this->flashLed(STATUSLED, status ? 2 : 5, 100);
 }
 
+/**
+ * Decode a request
+ */
 bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed) {
   char *token = strtok(requestAsString, ";");
   if(!token) {
@@ -115,6 +131,9 @@ bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequ
   return true;
 }
 
+/**
+ * Decode a request type from string
+ */
 MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req) {
   if(strcmp(req, "ToggleOnOff") == 0) {
     return REQ_ToggleOnOff;
@@ -122,6 +141,9 @@ MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req)
   return REQ_None;
 }
 
+/**
+ * Perform a ToggleOnOff command
+ */
 bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req, char *text) {
   if(!this->checkPinConfig(req->pin, PINCONFIG_DO)) {
     strcpy(text, "Pin is not configured for output");
@@ -134,6 +156,9 @@ bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req, char *text) 
   return true;
 }
 
+/**
+ * Send a status report to the MQTT broker
+ */
 void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text) {
   char myString[151];
   snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"}", 
@@ -147,6 +172,9 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   this->mqtt->publish(topic.c_str(), myString);
 }
 
+/**
+ * Check if a pin is configured correct
+ */
 bool MessageHandler::checkPinConfig(int pin, MessageHandler::PinConfig config) {
   if(pin > MAX_PINNUMBER || pin < 0) {
     return false;

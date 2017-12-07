@@ -37,6 +37,12 @@ char genericString[150];
 String chipIdAsString;
 const char *chipId;
 
+/**
+ * Configure all input and outputs prior to calling messagehandler.setup()
+ */
+void configurePinIO() {
+  messageHandler.assignPinConfiguration(4, MessageHandler::PINCONFIG_DO);
+}
 
 /*
  * Callback for new MQTT data
@@ -69,6 +75,9 @@ void mqttReconnect() {
   }
 }
 
+/**
+ * Format and send an alive message to the MQTT broker
+ */
 void sendAliveMessage(long timeNow) {
   IPAddress myIp = WiFi.localIP();
   snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\",\"version\":\"%s\"}", 
@@ -86,12 +95,8 @@ void sendAliveMessage(long timeNow) {
 }
 
 /**
- * Configure all input and outputs prior to calling messagehandler.setup()
+ * Setup application
  */
-void configurePinIO() {
-  messageHandler.assignPinConfiguration(4, MessageHandler::PINCONFIG_DO);
-}
-
 void setup() {
   Serial.begin(115200);
   delay(10);
@@ -131,6 +136,9 @@ void setup() {
   messageHandler.setup();
 }
 
+/**
+ * Main loop
+ */
 void loop() {
   if (!mqttClient.connected()) {
     mqttReconnect();
@@ -138,7 +146,7 @@ void loop() {
   mqttClient.loop();
   timeController.loop();
   long now = millis();
-  if (abs(now - lastTimeStatusToMqtt) > 10000) {
+  if ((abs(now - lastTimeStatusToMqtt) > 30000) || (lastTimeStatusToMqtt == 0)) {
     lastTimeStatusToMqtt = now;
     sendAliveMessage(now);
   } else {
