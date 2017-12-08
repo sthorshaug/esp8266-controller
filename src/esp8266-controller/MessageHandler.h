@@ -4,9 +4,10 @@
 #include <PubSubClient.h>
 #include "TimeController.h"
 #include "myconstants.h"
+#ifdef EXTLIB_DHT22
+#include "DHT.h"
+#endif
 
-
-    
 class MessageHandler {
   public:
     enum PinConfig {
@@ -15,6 +16,9 @@ class MessageHandler {
       PINCONFIG_DO,
       PINCONFIG_AI,
       PINCONFIG_AO
+#ifdef EXTLIB_DHT22
+     ,PINCONFIG_DHT22
+#endif
     };
   private:    
     enum MyRequestType {
@@ -35,6 +39,9 @@ class MessageHandler {
     const char *mqttBaseTopic;
     MyIOs myIOs[MAX_PINNUMBER+1];
     TimeController *timeController;
+#ifdef EXTLIB_DHT22
+    DHT *dht22[MAX_PINNUMBER+1];
+#endif
     
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);

@@ -15,6 +15,9 @@ MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, Ti
   this->timeController = timeController;
   for(int i=0; i<MAX_PINNUMBER; i++) {
     this->myIOs[i].active = false;
+#ifdef EXTLIB_DHT22
+    this->dht22[i] = NULL;
+#endif
   }
 }
 
@@ -24,7 +27,14 @@ MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, Ti
  */
 bool MessageHandler::assignPinConfiguration(int pin, MessageHandler::PinConfig config) {
   if(pin < 0 || pin > MAX_PINNUMBER) {
-    Serial.println("Invalid pin number");
+    Serial.print("Invalid pin number ");
+    Serial.println(pin);
+    return false;
+  }
+  if(this->myIOs[pin].active) {
+    Serial.print("Pin ");
+    Serial.print(pin);
+    Serial.println(" is already taken");
     return false;
   }
   this->myIOs[pin].active = true;
@@ -49,6 +59,13 @@ void MessageHandler::setup() {
         Serial.println(" as input");
         pinMode(i, INPUT);
         break;
+#ifdef EXTLIB_DHT22
+      case PINCONFIG_DHT22:
+        Serial.println(" as DHT22");
+        this->dht22[i] = new DHT(i, DHT22);
+        this->dht22[i]->begin();
+        break;
+#endif
       default:
         // todo Analog IO not supported yet
         Serial.println(" nothing. Not supported");
