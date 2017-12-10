@@ -2,6 +2,12 @@
 #define myconstants_h
 #include <Arduino.h>
 
+/* 
+ * Optional external libraries
+ * Uncomment the wanted dependencies
+ */
+//#define EXTLIB_DHT22 // Requires "Adafruit DHT22" and "Adafruit Unified Sensor"
+
 // The outputs are reversed on my ESP8266
 const int OUTPUT_HIGH = LOW;
 const int OUTPUT_LOW = HIGH;

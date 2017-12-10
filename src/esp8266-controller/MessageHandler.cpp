@@ -9,52 +9,11 @@
 /**
  * Constructor
  */
-MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, TimeController *timeController) {
+MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, TimeController *timeController, IOHandler *ioHandler) {
   this->mqtt = mqtt;
   this->mqttBaseTopic = mqttBaseTopic;
   this->timeController = timeController;
-  for(int i=0; i<MAX_PINNUMBER; i++) {
-    this->myIOs[i].active = false;
-  }
-}
-
-/**
- * Configure a specific pin
- * Must be performed prior to running
- */
-bool MessageHandler::assignPinConfiguration(int pin, MessageHandler::PinConfig config) {
-  if(pin < 0 || pin > MAX_PINNUMBER) {
-    Serial.println("Invalid pin number");
-    return false;
-  }
-  this->myIOs[pin].active = true;
-  this->myIOs[pin].config = config;
-}
-
-/**
- * Configure all pins
- */
-void MessageHandler::setup() {
-  for(int i=0; i<MAX_PINNUMBER; i++) {
-    if(!this->myIOs[i].active) continue;
-    Serial.print("Setting pin ");
-    Serial.print(i);
-    switch(this->myIOs[i].config) {
-      case PINCONFIG_DO:
-        Serial.println(" as output");
-        pinMode(i, OUTPUT);
-        digitalWrite(i, OUTPUT_LOW);
-        break;
-      case PINCONFIG_DI:
-        Serial.println(" as input");
-        pinMode(i, INPUT);
-        break;
-      default:
-        // todo Analog IO not supported yet
-        Serial.println(" nothing. Not supported");
-        break;
-    }
-  }
+  this->ioHandler = ioHandler;
 }
 
 /*
@@ -64,8 +23,10 @@ void MessageHandler::setup() {
 void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned int length) {
   char payload[100];
   char dbgOut[100];
+  char jsonValues[50];
   MessageHandler::MyRequest request;
   bool status = false;
+  jsonValues[0]=0;
   
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -95,13 +56,20 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
   dbgOut[0] = 0;
   switch(request.req) {
     case REQ_ToggleOnOff:
-      status = this->runToggleOnOff(&request, dbgOut);
+      status = this->ioHandler->runToggleOnOff(request.pin, request.waittime, dbgOut);
+      break;
+    case REQ_ReadDht22:
+#ifdef EXTLIB_DHT22
+      status = this->ioHandler->runReadDht22(request.pin, dbgOut, jsonValues);
+#else
+      strcpy(dbgOut, "DHT22 support not enabled");
+#endif
       break;
     default:
       strcpy(dbgOut, "Unknown request");
   }
-  this->sendMqttResponse(&request, status, dbgOut);
-  this->flashLed(STATUSLED, status ? 2 : 5, 100);
+  this->sendMqttResponse(&request, status, dbgOut, jsonValues);
+  this->ioHandler->flashLed(STATUSLED, status ? 2 : 5, 100);
 }
 
 /**
@@ -137,32 +105,20 @@ bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequ
 MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req) {
   if(strcmp(req, "ToggleOnOff") == 0) {
     return REQ_ToggleOnOff;
+  } else if(strcmp(req, "ReadDht22") == 0) {
+    return REQ_ReadDht22;
   }
   return REQ_None;
 }
 
-/**
- * Perform a ToggleOnOff command
- */
-bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req, char *text) {
-  if(!this->checkPinConfig(req->pin, PINCONFIG_DO)) {
-    strcpy(text, "Pin is not configured for output");
-    return false;
-  }
-  digitalWrite(req->pin, OUTPUT_HIGH);
-  delay(req->waittime);
-  digitalWrite(req->pin, OUTPUT_LOW);
-  strcpy(text, "Success");
-  return true;
-}
 
 /**
  * Send a status report to the MQTT broker
  */
-void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text) {
+void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues) {
   char myString[151];
-  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"}", 
-  this->timeController->currentEpoch(), req->req, req->pin, req->waittime, status ? "true" : "false", text);
+  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"%s}", 
+  this->timeController->currentEpoch(), req->req, req->pin, req->waittime, status ? "true" : "false", text, jsonValues);
   String topic = String(this->mqttBaseTopic);
   topic.concat("/response");
   Serial.print("Publish message to ");
@@ -172,28 +128,6 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   this->mqtt->publish(topic.c_str(), myString);
 }
 
-/**
- * Check if a pin is configured correct
- */
-bool MessageHandler::checkPinConfig(int pin, MessageHandler::PinConfig config) {
-  if(pin > MAX_PINNUMBER || pin < 0) {
-    return false;
-  }
-  return (this->myIOs[pin].active && this->myIOs[pin].config == config);
-}
 
-/*
- * Flash a led a given number of times
- */
-void MessageHandler::flashLed(int ledPin, int numberOfTimes, int waitTime) {
-  int i;
-  for(i=0; i<numberOfTimes; i++) {
-    digitalWrite(ledPin, OUTPUT_HIGH);
-    delay(waitTime);
-    digitalWrite(ledPin, OUTPUT_LOW);
-    if(i<numberOfTimes-1) {
-      delay(waitTime);
-    }
-  }
-}
+
 
