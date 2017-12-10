@@ -12,6 +12,13 @@ The framework supports the following:
  * Perform basic IO operations
 
 ## How to use
+### Requirements
+This SW uses [PubSubClient](https://github.com/knolleary/pubsubclient/) for MQTT 
+communication.  
+**In pusubclient.h the value MQTT_MAX_PACKET_SIZE must be changed to 256**. This will be fixed.
+
+This SW uses [NtpClient](https://github.com/arduino-libraries/NTPClient) for 
+UTC timesync. This will be made optional later.
 ### Modify the code
 In the _esp8266-controller.ino_ file, modify the following:  
 NETWORK_SSID - Set to your wanted SSID  
