@@ -23,7 +23,8 @@ class MessageHandler {
   private:    
     enum MyRequestType {
       REQ_None,
-      REQ_ToggleOnOff
+      REQ_ToggleOnOff,
+      REQ_ReadDht22
     };
     struct MyRequest {
       MyRequestType req;
@@ -46,7 +47,8 @@ class MessageHandler {
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);
     bool runToggleOnOff(MessageHandler::MyRequest *req, char *text);
-    void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text);
+    bool runReadDht22(MessageHandler::MyRequest *req, char *text, char *jsonValue);
+    void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues);
     bool checkPinConfig(int pin, MessageHandler::PinConfig config);
   public:
     MessageHandler(PubSubClient *mqtt, const char* mqttBaseTopic, TimeController *timeController);

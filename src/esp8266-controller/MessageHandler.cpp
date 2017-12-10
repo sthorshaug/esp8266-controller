@@ -81,8 +81,10 @@ void MessageHandler::setup() {
 void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned int length) {
   char payload[100];
   char dbgOut[100];
+  char jsonValues[50];
   MessageHandler::MyRequest request;
   bool status = false;
+  jsonValues[0]=0;
   
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -114,10 +116,17 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
     case REQ_ToggleOnOff:
       status = this->runToggleOnOff(&request, dbgOut);
       break;
+    case REQ_ReadDht22:
+#ifdef EXTLIB_DHT22
+      status = this->runReadDht22(&request, dbgOut, jsonValues);
+#else
+      strcpy(dbgOut, "DHT22 support not enabled");
+#endif
+      break;
     default:
       strcpy(dbgOut, "Unknown request");
   }
-  this->sendMqttResponse(&request, status, dbgOut);
+  this->sendMqttResponse(&request, status, dbgOut, jsonValues);
   this->flashLed(STATUSLED, status ? 2 : 5, 100);
 }
 
@@ -154,6 +163,8 @@ bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequ
 MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req) {
   if(strcmp(req, "ToggleOnOff") == 0) {
     return REQ_ToggleOnOff;
+  } else if(strcmp(req, "ReadDht22") == 0) {
+    return REQ_ReadDht22;
   }
   return REQ_None;
 }
@@ -174,12 +185,41 @@ bool MessageHandler::runToggleOnOff(MessageHandler::MyRequest *req, char *text) 
 }
 
 /**
+ * Perform an on-demand DHT22 reading
+ */
+bool MessageHandler::runReadDht22(MessageHandler::MyRequest *req, char *text, char *jsonValue) {
+#ifdef EXTLIB_DHT22
+  if(!this->checkPinConfig(req->pin, PINCONFIG_DHT22)) {
+    strcpy(text, "Pin is not configured for DHT22");
+    return false;
+  }
+  DHT *dht = this->dht22[0];
+  float t = dht->readTemperature();
+  float h = dht->readHumidity();
+  char temperature[10], humidity[10];
+  if(isnan(t) || isnan(h)) {
+    strcpy(text, "Temperature/Humidity was NaN");
+    strcpy(jsonValue, ",\"values\":[]");
+    return false;
+  }
+  dtostrf(t, 5, 1, temperature);
+  dtostrf(h, 5, 1, humidity);
+  snprintf (jsonValue, 50, ",\"values\":[\"temp\":%s,\"hum\":%s]", temperature, humidity);
+  strcpy(text, "");
+  return true;
+#else
+  strcpy(text, "DHT22 not enabled");
+  return false;
+#endif
+}
+
+/**
  * Send a status report to the MQTT broker
  */
-void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text) {
+void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues) {
   char myString[151];
-  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"}", 
-  this->timeController->currentEpoch(), req->req, req->pin, req->waittime, status ? "true" : "false", text);
+  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"%s}", 
+  this->timeController->currentEpoch(), req->req, req->pin, req->waittime, status ? "true" : "false", text, jsonValues);
   String topic = String(this->mqttBaseTopic);
   topic.concat("/response");
   Serial.print("Publish message to ");
@@ -213,4 +253,5 @@ void MessageHandler::flashLed(int ledPin, int numberOfTimes, int waitTime) {
     }
   }
 }
+
 
