@@ -88,18 +88,35 @@ void mqttReconnect() {
  */
 void sendAliveMessage(long timeNow) {
   IPAddress myIp = WiFi.localIP();
-  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\",\"version\":\"%s\"}", 
-    chipId, timeController.currentEpoch(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3], SW_VERSION);
+  snprintf (genericString, 150, "{\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", 
+    timeController.currentEpoch(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3]);
   String topic = String(MQTT_TOPIC_STATUS_BASE);
   topic.concat("/alive");
   Serial.print("Publish message to ");
   Serial.print(topic.c_str());
   Serial.print(": ");
   Serial.println(genericString);    
-  mqttClient.publish(topic.c_str(), genericString);
+  if(mqttClient.publish(topic.c_str(), genericString) == 0) {
+    Serial.println("Failed to publish to MQTT. Too long message?");
+  }
   digitalWrite(STATUSLED, OUTPUT_HIGH);
   delay(100);
   digitalWrite(STATUSLED, OUTPUT_LOW);
+}
+
+void sendAboutMessage() {
+  IPAddress myIp = WiFi.localIP();
+  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"version\":\"%s\"}", 
+    chipId, SW_VERSION);
+  String topic = String(MQTT_TOPIC_STATUS_BASE);
+  topic.concat("/about");
+  Serial.print("Publish message to ");
+  Serial.print(topic.c_str());
+  Serial.print(": ");
+  Serial.println(genericString);    
+  if(mqttClient.publish(topic.c_str(), genericString) == 0) {
+    Serial.println("Failed to publish to MQTT. Too long message?");
+  }
 }
 
 /**
@@ -155,8 +172,14 @@ void loop() {
   timeController.loop();
   long now = millis();
   if ((abs(now - lastTimeStatusToMqtt) > 30000) || (lastTimeStatusToMqtt == 0)) {
+    static int aboutCounter = 10;
     lastTimeStatusToMqtt = now;
     sendAliveMessage(now);
+    aboutCounter++;
+    if(aboutCounter >= 10) {
+      aboutCounter = 0;
+      sendAboutMessage();
+    }
   } else {
     delay(100);
   }  
