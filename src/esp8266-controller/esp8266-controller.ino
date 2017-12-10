@@ -9,6 +9,7 @@
 #include "myconstants.h"
 #include "TimeController.h"
 #include "MessageHandler.h"
+#include "IOHandler.h"
 
 /*
  * Constants
@@ -31,7 +32,8 @@ const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 TimeController timeController;
-MessageHandler messageHandler(&mqttClient, MQTT_TOPIC_STATUS_BASE, &timeController);
+IOHandler ioHandler;
+MessageHandler messageHandler(&mqttClient, MQTT_TOPIC_STATUS_BASE, &timeController, &ioHandler);
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;
@@ -41,7 +43,13 @@ const char *chipId;
  * Configure all input and outputs prior to calling messagehandler.setup()
  */
 void configurePinIO() {
-  messageHandler.assignPinConfiguration(4, MessageHandler::PINCONFIG_DO);
+  // An example of adding a digital out pin
+  ioHandler.assignPinConfiguration(4, IOHandler::PINCONFIG_DO);
+  
+  // An example on adding a DHT22 sensor
+ #ifdef EXTLIB_DHT22
+  ioHandler.assignPinConfiguration(0, IOHandler::PINCONFIG_DHT22);
+  #endif
 }
 
 /*
@@ -69,7 +77,7 @@ void mqttReconnect() {
       Serial.print(mqttClient.state());
       Serial.println(" try again in 5 seconds");
       // Flash onboard LED
-      messageHandler.flashLed(STATUSLED, 3, 200);
+      ioHandler.flashLed(STATUSLED, 3, 200);
       delay(4000);
     }
   }
@@ -133,7 +141,7 @@ void setup() {
   mqttClient.setCallback(mqttDataCallback);
   timeController.setup();
   configurePinIO();
-  messageHandler.setup();
+  ioHandler.setup();
 }
 
 /**
