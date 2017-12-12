@@ -5,6 +5,7 @@
  * @author Steinar Thorshaug
  */
 #include "MessageHandler.h"
+#include "TimeController.h"
 
 /**
  * Constructor

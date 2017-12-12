@@ -177,7 +177,7 @@ void loop() {
     mqttReconnect();
   }
   mqttClient.loop();
-  updateUtcTime();
+  updateTimeController();
   long now = millis();
   if ((abs(now - lastTimeStatusToMqtt) > 30000) || (lastTimeStatusToMqtt == 0)) {
     static int aboutCounter = 10;
