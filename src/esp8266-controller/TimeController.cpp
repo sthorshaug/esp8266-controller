@@ -18,12 +18,12 @@ WiFiUDP udp;
  * Wrapper for millis(). Mainly used for wrap after approx 65 secs.
  * Consider to remove at a later stage.
  */
-unsigned long myMillis() {
+static unsigned long myMillis() {
   return (millis() % 65535);
 }
 
 // send an NTP request to the time server at the given address
-unsigned long sendNTPpacket(IPAddress& address)
+static unsigned long sendNTPpacket(IPAddress& address)
 {
   Serial.println("sending NTP packet...");
   // set all bytes in the buffer to 0
@@ -69,106 +69,176 @@ void printEpoch(unsigned long epoch) {
 }
 
 
-TimeController::TimeController() {
-  this->wrappedMillis = 0;
-  this->lastQuery = 0;
-  this->millisAtEpoch = 0;
-  this->lastEpoch = 0;
-  this->lastMillis = 0;
+class TimeController {
+  private:    
+    long lastQuery;
+    unsigned long lastEpoch;
+    unsigned long millisAtEpoch;
+    unsigned int wrappedMillis;
+    unsigned long lastMillis;
+    char formattedTime[50];
+
+    /** 
+     *  Check if millisecconds have wrapped since last epoch
+     */
+    void checkWrappedMillis(unsigned long now) {
+      if(this->lastEpoch == 0) {
+        return;
+      }
+      if(now < this->lastMillis) {
+        this->wrappedMillis += 1;
+        Serial.print("Wrapped again ");
+        Serial.println(this->wrappedMillis);
+      }
+      this->lastMillis = now;
+    };
+
+    /**
+     * Get number of millisecons since last epoch
+     */
+    int millisSinceEpoch() {
+      unsigned long now = myMillis();  
+      this->checkWrappedMillis(now);
+      return (int)now-(int)this->millisAtEpoch+(int)this->wrappedMillis*65535;
+    };
+  public:
+    /**
+     * Create a timecontroller object
+     */
+    TimeController() {
+      this->wrappedMillis = 0;
+      this->lastQuery = 0;
+      this->millisAtEpoch = 0;
+      this->lastEpoch = 0;
+      this->lastMillis = 0;
+    };
+    
+    void setup() {
+      Serial.println("Starting UDP for NTP communication");
+      udp.begin(localPort);
+      Serial.print("Local port: ");
+      Serial.println(udp.localPort());
+    };
+
+    /**
+     * Check if time to request current UTC time
+     */
+    void loop() {
+      unsigned long now = millis();
+      if (abs(now - this->lastQuery) > 60000 || this->lastQuery == 0) {
+        this->lastQuery = now;
+        this->queryNtpTime();
+      }
+      
+      this->checkWrappedMillis(myMillis());
+    };
+
+    /**
+     * Update current UTC time
+     */
+    void queryNtpTime() {
+      int counter = 0;
+      //get a random server from the pool
+      WiFi.hostByName(ntpServerName, timeServerIP); 
+      udp.flush();
+      sendNTPpacket(timeServerIP); // send an NTP packet to a time server
+      // wait to see if a reply is available  
+      int cb = 0;
+      Serial.print("Wait for response");
+      while(counter < 10) {
+        counter++;
+        cb = udp.parsePacket();
+        if(!cb) {
+          Serial.print(".");
+          delay(100);
+        } else {
+          counter = 100;
+        }
+      }
+      
+      if (!cb) {
+        Serial.println("no packet yet");
+      }
+      else {
+        Serial.print(" packet received, length=");
+        Serial.println(cb);
+        // We've received a packet, read the data from it
+        udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+    
+        //the timestamp starts at byte 40 of the received packet and is four bytes,
+        // or two words, long. First, esxtract the two words:
+    
+        unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+        unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+        // combine the four bytes (two words) into a long integer
+        // this is NTP time (seconds since Jan 1 1900):
+        unsigned long secsSince1900 = highWord << 16 | lowWord;    
+        // now convert NTP time into everyday time:
+        // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+        const unsigned long seventyYears = 2208988800UL;
+        // subtract seventy years:
+        unsigned long epoch = secsSince1900 - seventyYears;
+        printEpoch(epoch);
+    
+        this->lastEpoch = epoch;
+        this->millisAtEpoch = myMillis();
+        this->wrappedMillis = 0;    
+      }
+    };
+
+    /**
+     * Get current epoch
+     */
+    unsigned long currentEpoch() {
+      if(this->lastEpoch == 0) {
+        return 0;
+      }
+      return (unsigned long)(this->lastEpoch+this->millisSinceEpoch()/1000);
+    };
+    
+};
+
+
+static TimeController *timecontroller = NULL;
+static char timeString[50];
+
+/**
+ * Init timecontroller
+ */
+void initTimeController(bool useNtp) {
+  if(useNtp) {
+    timecontroller = new TimeController();
+    timecontroller->setup();
+  }
 }
 
-void TimeController::setup() {
-  Serial.println("Starting UDP");
-  udp.begin(localPort);
-  Serial.print("Local port: ");
-  Serial.println(udp.localPort());
+/**
+ * Update timecontroller
+ * Check for wrapped milliseconds and query NTP if necessary
+ */
+bool updateTimeController() {
+  if(!timecontroller) return false;
+  timecontroller->loop();
 }
 
-void TimeController::loop() {
-  unsigned long now = millis();
-  if (abs(now - this->lastQuery) > 30000 || this->lastQuery == 0) {
-    this->lastQuery = now;
-    this->queryNtpTime();
-  }
-  
-  this->checkWrappedMillis(myMillis());  
+/**
+ * Get current UTC time
+ */
+unsigned long getCurrentUtcTime() {
+  if(!timecontroller) return 0;
+  return timecontroller->currentEpoch();
 }
 
-void TimeController::checkWrappedMillis(unsigned long now) {
-  if(this->lastEpoch == 0) {
-    return;
+/**
+ * Format current UTC time as a JSON field with comma at the end
+ */
+char* getCurrentUtcTimeAsJsonField() {
+  if(!timecontroller) {
+    timeString[0] = 0;
+    return timeString;
   }
-  if(now < this->lastMillis) {
-    this->wrappedMillis += 1;
-    Serial.print("Wrapped again ");
-    Serial.println(this->wrappedMillis);
-  }
-  this->lastMillis = now;
-  
+  snprintf(timeString, 50, "\"time\":%ld,", timecontroller->currentEpoch());
+  return timeString;
+  return timeString;
 }
-
-int TimeController::millisSinceEpoch() {  
-  unsigned long now = myMillis();  
-  this->checkWrappedMillis(now);
-  return (int)now-(int)this->millisAtEpoch+(int)this->wrappedMillis*65535;
-}
-
-unsigned long TimeController::currentEpoch() {
-  if(this->lastEpoch == 0) {
-    return 0;
-  }
-  return (unsigned long)(this->lastEpoch+this->millisSinceEpoch()/1000);
-}
-
-void TimeController::queryNtpTime()
-{
-  int counter = 0;
-  //get a random server from the pool
-  WiFi.hostByName(ntpServerName, timeServerIP); 
-  udp.flush();
-  sendNTPpacket(timeServerIP); // send an NTP packet to a time server
-  // wait to see if a reply is available  
-  int cb = 0;
-  Serial.print("Wait for response");
-  while(counter < 10) {
-    counter++;
-    cb = udp.parsePacket();
-    if(!cb) {
-      Serial.print(".");
-      delay(100);
-    } else {
-      counter = 100;
-    }
-  }
-  
-  if (!cb) {
-    Serial.println("no packet yet");
-  }
-  else {
-    Serial.print(" packet received, length=");
-    Serial.println(cb);
-    // We've received a packet, read the data from it
-    udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
-
-    //the timestamp starts at byte 40 of the received packet and is four bytes,
-    // or two words, long. First, esxtract the two words:
-
-    unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-    unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-    // combine the four bytes (two words) into a long integer
-    // this is NTP time (seconds since Jan 1 1900):
-    unsigned long secsSince1900 = highWord << 16 | lowWord;    
-    // now convert NTP time into everyday time:
-    // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
-    const unsigned long seventyYears = 2208988800UL;
-    // subtract seventy years:
-    unsigned long epoch = secsSince1900 - seventyYears;
-    printEpoch(epoch);
-
-    this->lastEpoch = epoch;
-    this->millisAtEpoch = myMillis();
-    this->wrappedMillis = 0;    
-  }
-}
-
 
