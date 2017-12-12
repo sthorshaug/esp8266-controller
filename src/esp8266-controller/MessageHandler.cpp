@@ -117,17 +117,35 @@ MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req)
  */
 void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues) {
   char myString[151];
-  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"pin\":%d,\"waittime\":%d,\"status\":%s,\"message\":\"%s\"%s}", 
-  this->timeController->currentEpoch(), req->req, req->pin, req->waittime, status ? "true" : "false", text, jsonValues);
+  char respTopic[20];
+  
+  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"status\":%s,\"message\":\"%s\"%s}", 
+  this->timeController->currentEpoch(), req->req, status ? "true" : "false", text);
   String topic = String(this->mqttBaseTopic);
-  topic.concat("/response");
+  snprintf (respTopic, 20, "/response/%d", req->pin);
+  topic.concat(respTopic);
   Serial.print("Publish message to ");
   Serial.print(topic.c_str());
   Serial.print(": ");
   Serial.println(myString);    
-  this->mqtt->publish(topic.c_str(), myString);
+  if(this->mqtt->publish(topic.c_str(), myString) == 0) {
+    Serial.println("MessageHandler: Failed to publish to mqtt. Too long message?");
+  }
+
+  if(jsonValues[0] != 0) {
+    snprintf (myString, 150, "{\"time\":%ld,%s}", 
+    this->timeController->currentEpoch(), jsonValues);
+    topic = String(this->mqttBaseTopic);
+    snprintf (respTopic, 20, "/values/%d", req->pin);
+    topic.concat(respTopic);
+    Serial.print("Publish message to ");
+    Serial.print(topic.c_str());
+    Serial.print(": ");
+    Serial.println(myString);    
+    if(this->mqtt->publish(topic.c_str(), myString) == 0) {
+      Serial.println("MessageHandler: Failed to publish to mqtt. Too long message?");
+    }
+  }
 }
-
-
 
 
