@@ -6,7 +6,7 @@
 #include "IOHandler.h"
 
 class MessageHandler {
-  private:    
+  public:    
     enum MyRequestType {
       REQ_None,
       REQ_ToggleOnOff,
@@ -17,8 +17,8 @@ class MessageHandler {
       int           pin;
       int           waittime;
     };
-    
-    
+  
+  private:  
     PubSubClient *mqtt;
     const char *mqttBaseTopic;
     TimeController *timeController;
@@ -27,8 +27,10 @@ class MessageHandler {
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);
     void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues);
+    
   public:
     MessageHandler(PubSubClient *mqtt, const char* mqttBaseTopic, TimeController *timeController, IOHandler *ioHandler);
     void handleRequest(char* topic, byte* payloadAsBytes, unsigned int length);
+    void handleRequest(MessageHandler::MyRequest *req);
 };
 #endif
