@@ -15,10 +15,14 @@ The framework supports the following:
 ### Requirements
 This SW uses [PubSubClient](https://github.com/knolleary/pubsubclient/) for MQTT 
 communication.  
-**In pusubclient.h the value MQTT_MAX_PACKET_SIZE must be changed to 256**. This will be fixed.
+The default value of *MQTT_MAX_PACKET_SIZE* defined in pubsubclient.h is 128. 
+This means that the maximum size of the mqtt header and payload is 128 bytes. Too 
+allow larger payloads, this value must be modified to suit your own needs.
+
 
 This SW uses [NtpClient](https://github.com/arduino-libraries/NTPClient) for 
 UTC timesync. This will be made optional later.
+
 ### Modify the code
 In the _esp8266-controller.ino_ file, modify the following:  
 NETWORK_SSID - Set to your wanted SSID  
