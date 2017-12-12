@@ -28,7 +28,6 @@ class MessageHandler {
   
     PubSubClient *mqtt;
     const char *mqttBaseTopic;
-    TimeController *timeController;
     IOHandler *ioHandler;
     ScheduledItem schedules[10];
     int activeSchedules;
@@ -39,7 +38,7 @@ class MessageHandler {
     void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues);
     
   public:
-    MessageHandler(PubSubClient *mqtt, const char* mqttBaseTopic, TimeController *timeController, IOHandler *ioHandler);
+    MessageHandler(PubSubClient *mqtt, const char* mqttBaseTopic, IOHandler *ioHandler);
     void handleRequest(char* topic, byte* payloadAsBytes, unsigned int length);
     void handleRequest(MessageHandler::MyRequest *req);
     bool addScheduledRequest(MyRequest *req, unsigned long interval);

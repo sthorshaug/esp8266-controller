@@ -19,4 +19,8 @@ class TimeController {
     unsigned long currentEpoch();
     int millisSinceEpoch();
 };
+
+void initTimeController(bool useNtp);
+bool updateUtcTime();
+unsigned long getCurrentUtcTime();
 #endif

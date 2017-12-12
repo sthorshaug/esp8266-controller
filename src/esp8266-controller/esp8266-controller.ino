@@ -26,14 +26,15 @@ const char* MQTT_SERVER = "ipOfMqttServer";
 const char* MQTT_TOPIC_STATUS_BASE = "topic_to_use_as_base";
 const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all sub topics
 
+const bool USE_NTP = true; // Set to false to not sync to UTC time
+
 /*
  * Our framework
  */
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
-TimeController timeController;
 IOHandler ioHandler;
-MessageHandler messageHandler(&mqttClient, MQTT_TOPIC_STATUS_BASE, &timeController, &ioHandler);
+MessageHandler messageHandler(&mqttClient, MQTT_TOPIC_STATUS_BASE, &ioHandler);
 long lastTimeStatusToMqtt = 0;
 char genericString[150];
 String chipIdAsString;
@@ -96,7 +97,7 @@ void mqttReconnect() {
 void sendAliveMessage(long timeNow) {
   IPAddress myIp = WiFi.localIP();
   snprintf (genericString, 150, "{\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", 
-    timeController.currentEpoch(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3]);
+    getCurrentUtcTime(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3]);
   String topic = String(MQTT_TOPIC_STATUS_BASE);
   topic.concat("/alive");
   Serial.print("Publish message to ");
@@ -163,7 +164,7 @@ void setup() {
   Serial.println("Start MQTT");
   mqttClient.setServer(MQTT_SERVER, 1883);
   mqttClient.setCallback(mqttDataCallback);
-  timeController.setup();
+  initTimeController(USE_NTP);
   configurePinIO();
   ioHandler.setup();
 }
@@ -176,7 +177,7 @@ void loop() {
     mqttReconnect();
   }
   mqttClient.loop();
-  timeController.loop();
+  updateUtcTime();
   long now = millis();
   if ((abs(now - lastTimeStatusToMqtt) > 30000) || (lastTimeStatusToMqtt == 0)) {
     static int aboutCounter = 10;

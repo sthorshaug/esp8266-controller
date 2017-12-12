@@ -9,10 +9,9 @@
 /**
  * Constructor
  */
-MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, TimeController *timeController, IOHandler *ioHandler) {
+MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, IOHandler *ioHandler) {
   this->mqtt = mqtt;
   this->mqttBaseTopic = mqttBaseTopic;
-  this->timeController = timeController;
   this->ioHandler = ioHandler;
   for(int i=0; i<10; i++) {
     this->schedules[i].active = false;
@@ -165,7 +164,7 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   char respTopic[20];
   
   snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"status\":%s,\"message\":\"%s\"}", 
-  this->timeController->currentEpoch(), req->req, status ? "true" : "false", text);
+    getCurrentUtcTime(), req->req, status ? "true" : "false", text);
   String topic = String(this->mqttBaseTopic);
   snprintf (respTopic, 20, "/response/%d", req->pin);
   topic.concat(respTopic);
@@ -178,8 +177,7 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   }
 
   if(jsonValues[0] != 0) {
-    snprintf (myString, 150, "{\"time\":%ld,%s}", 
-    this->timeController->currentEpoch(), jsonValues);
+    snprintf (myString, 150, "{\"time\":%ld,%s}", getCurrentUtcTime(), jsonValues);
     topic = String(this->mqttBaseTopic);
     snprintf (respTopic, 20, "/values/%d", req->pin);
     topic.concat(respTopic);

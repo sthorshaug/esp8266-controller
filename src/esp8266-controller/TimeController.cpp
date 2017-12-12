@@ -18,7 +18,7 @@ WiFiUDP udp;
  * Wrapper for millis(). Mainly used for wrap after approx 65 secs.
  * Consider to remove at a later stage.
  */
-unsigned long myMillis() {
+static unsigned long myMillis() {
   return (millis() % 65535);
 }
 
@@ -86,7 +86,7 @@ void TimeController::setup() {
 
 void TimeController::loop() {
   unsigned long now = millis();
-  if (abs(now - this->lastQuery) > 30000 || this->lastQuery == 0) {
+  if (abs(now - this->lastQuery) > 60000 || this->lastQuery == 0) {
     this->lastQuery = now;
     this->queryNtpTime();
   }
@@ -171,4 +171,22 @@ void TimeController::queryNtpTime()
   }
 }
 
+static TimeController *timecontroller = NULL;
+
+void initTimeController(bool useNtp) {
+  if(useNtp) {
+    timecontroller = new TimeController();
+    timecontroller->setup();
+  }
+}
+
+bool updateUtcTime() {
+  if(!timecontroller) return false;
+  timecontroller->loop();
+}
+
+unsigned long getCurrentUtcTime() {
+  if(!timecontroller) return 0;
+  return timecontroller->currentEpoch();
+}
 
