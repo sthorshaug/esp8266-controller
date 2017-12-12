@@ -29,7 +29,7 @@ class IOHandler {
 
     void flashLed(int ledPin, int numberOfTimes, int waitTime);
     bool runToggleOnOff(int pin, int waittime, char *text);
-    bool runReadDht22(int pin, char *text, char *jsonValue);
+    bool runReadValues(int pin, char *text, char *jsonValue);
 
   private:
     MyIOs myIOs[MAX_PINNUMBER+1];
@@ -38,6 +38,7 @@ class IOHandler {
 #endif
 
     bool checkPinConfig(int pin, IOHandler::PinConfig config);
+    bool readDht22(int pin, char *text, char *jsonValue);
 };
 
 #endif

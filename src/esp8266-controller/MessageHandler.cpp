@@ -58,12 +58,8 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
     case REQ_ToggleOnOff:
       status = this->ioHandler->runToggleOnOff(request.pin, request.waittime, dbgOut);
       break;
-    case REQ_ReadDht22:
-#ifdef EXTLIB_DHT22
-      status = this->ioHandler->runReadDht22(request.pin, dbgOut, jsonValues);
-#else
-      strcpy(dbgOut, "DHT22 support not enabled");
-#endif
+    case REQ_ReadValues:
+      status = this->ioHandler->runReadValues(request.pin, dbgOut, jsonValues);
       break;
     default:
       strcpy(dbgOut, "Unknown request");
@@ -105,8 +101,8 @@ bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequ
 MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req) {
   if(strcmp(req, "ToggleOnOff") == 0) {
     return REQ_ToggleOnOff;
-  } else if(strcmp(req, "ReadDht22") == 0) {
-    return REQ_ReadDht22;
+  } else if(strcmp(req, "ReadValues") == 0) {
+    return REQ_ReadValues;
   }
   return REQ_None;
 }

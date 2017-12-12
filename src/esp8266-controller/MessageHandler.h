@@ -10,7 +10,7 @@ class MessageHandler {
     enum MyRequestType {
       REQ_None,
       REQ_ToggleOnOff,
-      REQ_ReadDht22
+      REQ_ReadValues
     };
     struct MyRequest {
       MyRequestType req;
