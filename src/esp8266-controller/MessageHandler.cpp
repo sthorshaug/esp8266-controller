@@ -14,6 +14,46 @@ MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, Ti
   this->mqttBaseTopic = mqttBaseTopic;
   this->timeController = timeController;
   this->ioHandler = ioHandler;
+  for(int i=0; i<10; i++) {
+    this->schedules[i].active = false;
+  }
+  this->activeSchedules = 0;
+}
+
+/**
+ * Add a scheduled repeated request
+ */
+bool MessageHandler::addScheduledRequest(MyRequest *req, unsigned long interval) {
+  if(this->activeSchedules >= 10) {
+    return false;
+  }
+  ScheduledItem *item = &this->schedules[this->activeSchedules];
+  this->activeSchedules++;
+  item->req = *req;
+  item->active = true;
+  item->interval = interval;
+  item->lastExecuted = 0;
+}
+
+/**
+ * Check if any scheduled requests are pending
+ */
+bool MessageHandler::executeSchedulesRequests() {
+  ScheduledItem *item = NULL;
+  bool returnval = false;
+  unsigned long timenow = millis();
+  
+  for(int i=0; i<this->activeSchedules; i++) {
+    item = &this->schedules[i];
+    if(!item->active) continue;
+    if(abs(timenow - item->lastExecuted) > item->interval) {
+      this->handleRequest(&item->req);
+      returnval = true;
+      item->lastExecuted = timenow;
+    }
+  }
+
+  return returnval;
 }
 
 /*
@@ -22,11 +62,7 @@ MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, Ti
  */
 void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned int length) {
   char payload[100];
-  char dbgOut[100];
-  char jsonValues[50];
   MessageHandler::MyRequest request;
-  bool status = false;
-  jsonValues[0]=0;
   
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -43,32 +79,41 @@ void MessageHandler::handleRequest(char* topic, byte* payloadAsBytes, unsigned i
   if(!this->decodeRequest(payload, &request)) {
     return;
   }
-  snprintf(dbgOut, 100, "Req %d, pin %d, waittime %d", request.req, request.pin, request.waittime);
+  this->handleRequest(&request);
+  
+}
+
+/**
+ * Handle a decoded request
+ */
+void MessageHandler::handleRequest(MessageHandler::MyRequest *req) {
+  char dbgOut[100];
+  char jsonValues[50];
+  bool status = false;
+  
+  jsonValues[0]=0;
+  snprintf(dbgOut, 100, "Req %d, pin %d, waittime %d", req->req, req->pin, req->waittime);
   Serial.println(dbgOut);
-  if(request.waittime < 0) {
+  if(req->waittime < 0) {
     Serial.println("Negative waittime - aborting request");
     return;
   }
-  if(request.waittime > 5000) {
+  if(req->waittime > 5000) {
     Serial.println("Waittime changed to 5000ms");
   }
 
   dbgOut[0] = 0;
-  switch(request.req) {
+  switch(req->req) {
     case REQ_ToggleOnOff:
-      status = this->ioHandler->runToggleOnOff(request.pin, request.waittime, dbgOut);
+      status = this->ioHandler->runToggleOnOff(req->pin, req->waittime, dbgOut);
       break;
-    case REQ_ReadDht22:
-#ifdef EXTLIB_DHT22
-      status = this->ioHandler->runReadDht22(request.pin, dbgOut, jsonValues);
-#else
-      strcpy(dbgOut, "DHT22 support not enabled");
-#endif
+    case REQ_ReadValues:
+      status = this->ioHandler->runReadValues(req->pin, dbgOut, jsonValues);
       break;
     default:
       strcpy(dbgOut, "Unknown request");
   }
-  this->sendMqttResponse(&request, status, dbgOut, jsonValues);
+  this->sendMqttResponse(req, status, dbgOut, jsonValues);
   this->ioHandler->flashLed(STATUSLED, status ? 2 : 5, 100);
 }
 
@@ -105,8 +150,8 @@ bool MessageHandler::decodeRequest(char* requestAsString, MessageHandler::MyRequ
 MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req) {
   if(strcmp(req, "ToggleOnOff") == 0) {
     return REQ_ToggleOnOff;
-  } else if(strcmp(req, "ReadDht22") == 0) {
-    return REQ_ReadDht22;
+  } else if(strcmp(req, "ReadValues") == 0) {
+    return REQ_ReadValues;
   }
   return REQ_None;
 }
@@ -119,7 +164,7 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   char myString[151];
   char respTopic[20];
   
-  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"status\":%s,\"message\":\"%s\"%s}", 
+  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"status\":%s,\"message\":\"%s\"}", 
   this->timeController->currentEpoch(), req->req, status ? "true" : "false", text);
   String topic = String(this->mqttBaseTopic);
   snprintf (respTopic, 20, "/response/%d", req->pin);

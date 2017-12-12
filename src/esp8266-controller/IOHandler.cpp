@@ -94,9 +94,28 @@ bool IOHandler::runToggleOnOff(int pin, int waittime, char *text) {
 }
 
 /**
+ * Perform a read values command
+ */
+bool IOHandler::runReadValues(int pin, char *text, char *jsonValue) {
+  if(this->checkPinConfig(pin, PINCONFIG_DI)) {
+    strcpy(text, "DI reading not supported");
+    return false;
+  }
+#ifdef EXTLIB_DHT22
+  else if(this->checkPinConfig(pin, PINCONFIG_DHT22)) {
+    return this->readDht22(pin, text, jsonValue);
+  }
+#endif
+  else {
+    strcpy(text, "Pin does not support readings");
+    return false;
+  }
+}
+
+/**
  * Perform an on-demand DHT22 reading
  */
-bool IOHandler::runReadDht22(int pin, char *text, char *jsonValue) {
+bool IOHandler::readDht22(int pin, char *text, char *jsonValue) {
 #ifdef EXTLIB_DHT22
   if(!this->checkPinConfig(pin, PINCONFIG_DHT22)) {
     strcpy(text, "Pin is not configured for DHT22");

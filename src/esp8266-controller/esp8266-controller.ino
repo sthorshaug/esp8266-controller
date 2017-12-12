@@ -47,9 +47,16 @@ void configurePinIO() {
   ioHandler.assignPinConfiguration(4, IOHandler::PINCONFIG_DO);
   
   // An example on adding a DHT22 sensor
- #ifdef EXTLIB_DHT22
+#ifdef EXTLIB_DHT22
   ioHandler.assignPinConfiguration(0, IOHandler::PINCONFIG_DHT22);
-  #endif
+  
+  // Scheduled requests example
+  MessageHandler::MyRequest request1;
+  request1.req = MessageHandler::MyRequestType::REQ_ReadValues;
+  request1.pin = 0;
+  request1.waittime = 0;
+  messageHandler.addScheduledRequest(&request1, 60000);
+#endif
 }
 
 /*
@@ -180,7 +187,7 @@ void loop() {
       aboutCounter = 0;
       sendAboutMessage();
     }
-  } else {
+  } else if(!messageHandler.executeSchedulesRequests()) {
     delay(100);
   }  
 }
