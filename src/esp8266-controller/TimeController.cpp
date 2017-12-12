@@ -200,7 +200,11 @@ class TimeController {
 
 
 static TimeController *timecontroller = NULL;
+static char timeString[50];
 
+/**
+ * Init timecontroller
+ */
 void initTimeController(bool useNtp) {
   if(useNtp) {
     timecontroller = new TimeController();
@@ -208,13 +212,33 @@ void initTimeController(bool useNtp) {
   }
 }
 
+/**
+ * Update timecontroller
+ * Check for wrapped milliseconds and query NTP if necessary
+ */
 bool updateTimeController() {
   if(!timecontroller) return false;
   timecontroller->loop();
 }
 
+/**
+ * Get current UTC time
+ */
 unsigned long getCurrentUtcTime() {
   if(!timecontroller) return 0;
   return timecontroller->currentEpoch();
+}
+
+/**
+ * Format current UTC time as a JSON field with comma at the end
+ */
+char* getCurrentUtcTimeAsJsonField() {
+  if(!timecontroller) {
+    timeString[0] = 0;
+    return timeString;
+  }
+  snprintf(timeString, 50, "\"time\":%ld,", timecontroller->currentEpoch());
+  return timeString;
+  return timeString;
 }
 

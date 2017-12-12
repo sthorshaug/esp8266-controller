@@ -164,8 +164,8 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   char myString[151];
   char respTopic[20];
   
-  snprintf (myString, 150, "{\"time\":%ld,\"req\":%d,\"status\":%s,\"message\":\"%s\"}", 
-    getCurrentUtcTime(), req->req, status ? "true" : "false", text);
+  snprintf (myString, 150, "{%s\"req\":%d,\"status\":%s,\"message\":\"%s\"}", 
+    getCurrentUtcTimeAsJsonField(), req->req, status ? "true" : "false", text);
   String topic = String(this->mqttBaseTopic);
   snprintf (respTopic, 20, "/response/%d", req->pin);
   topic.concat(respTopic);

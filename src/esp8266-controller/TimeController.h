@@ -3,4 +3,5 @@
 void initTimeController(bool useNtp);
 bool updateTimeController();
 unsigned long getCurrentUtcTime();
+char* getCurrentUtcTimeAsJsonField();
 #endif

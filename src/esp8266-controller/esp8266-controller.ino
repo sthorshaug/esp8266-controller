@@ -96,8 +96,8 @@ void mqttReconnect() {
  */
 void sendAliveMessage(long timeNow) {
   IPAddress myIp = WiFi.localIP();
-  snprintf (genericString, 150, "{\"time\":%ld,\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", 
-    getCurrentUtcTime(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3]);
+  snprintf (genericString, 150, "{%s\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", 
+    getCurrentUtcTimeAsJsonField(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3]);
   String topic = String(MQTT_TOPIC_STATUS_BASE);
   topic.concat("/alive");
   Serial.print("Publish message to ");
