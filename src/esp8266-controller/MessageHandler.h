@@ -19,10 +19,20 @@ class MessageHandler {
     };
   
   private:  
+    struct ScheduledItem {
+      bool          active;
+      MyRequest     req;
+      unsigned long lastExecuted;
+      unsigned long interval;
+    };
+  
     PubSubClient *mqtt;
     const char *mqttBaseTopic;
     TimeController *timeController;
     IOHandler *ioHandler;
+    ScheduledItem schedules[10];
+    int activeSchedules;
+    
     
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);
@@ -32,5 +42,7 @@ class MessageHandler {
     MessageHandler(PubSubClient *mqtt, const char* mqttBaseTopic, TimeController *timeController, IOHandler *ioHandler);
     void handleRequest(char* topic, byte* payloadAsBytes, unsigned int length);
     void handleRequest(MessageHandler::MyRequest *req);
+    bool addScheduledRequest(MyRequest *req, unsigned long interval);
+    bool executeSchedulesRequests();
 };
 #endif

@@ -14,6 +14,46 @@ MessageHandler::MessageHandler(PubSubClient *mqtt, const char *mqttBaseTopic, Ti
   this->mqttBaseTopic = mqttBaseTopic;
   this->timeController = timeController;
   this->ioHandler = ioHandler;
+  for(int i=0; i<10; i++) {
+    this->schedules[i].active = false;
+  }
+  this->activeSchedules = 0;
+}
+
+/**
+ * Add a scheduled repeated request
+ */
+bool MessageHandler::addScheduledRequest(MyRequest *req, unsigned long interval) {
+  if(this->activeSchedules >= 10) {
+    return false;
+  }
+  ScheduledItem *item = &this->schedules[this->activeSchedules];
+  this->activeSchedules++;
+  item->req = *req;
+  item->active = true;
+  item->interval = interval;
+  item->lastExecuted = 0;
+}
+
+/**
+ * Check if any scheduled requests are pending
+ */
+bool MessageHandler::executeSchedulesRequests() {
+  ScheduledItem *item = NULL;
+  bool returnval = false;
+  unsigned long timenow = millis();
+  
+  for(int i=0; i<this->activeSchedules; i++) {
+    item = &this->schedules[i];
+    if(!item->active) continue;
+    if(abs(timenow - item->lastExecuted) > item->interval) {
+      this->handleRequest(&item->req);
+      returnval = true;
+      item->lastExecuted = timenow;
+    }
+  }
+
+  return returnval;
 }
 
 /*
