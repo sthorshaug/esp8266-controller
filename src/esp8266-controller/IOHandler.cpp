@@ -89,7 +89,7 @@ bool IOHandler::runToggleOnOff(int pin, int waittime, char *text) {
   digitalWrite(pin, OUTPUT_HIGH);
   delay(waittime);
   digitalWrite(pin, OUTPUT_LOW);
-  strcpy(text, "Success");
+  strcpy(text, "");
   return true;
 }
 
@@ -108,12 +108,12 @@ bool IOHandler::runReadDht22(int pin, char *text, char *jsonValue) {
   char temperature[10], humidity[10];
   if(isnan(t) || isnan(h)) {
     strcpy(text, "Temperature/Humidity was NaN");
-    strcpy(jsonValue, ",\"values\":[]");
+    strcpy(jsonValue, "");
     return false;
   }
   dtostrf(t, 5, 1, temperature);
   dtostrf(h, 5, 1, humidity);
-  snprintf (jsonValue, 50, ",\"values\":[\"temp\":%s,\"hum\":%s]", temperature, humidity);
+  snprintf (jsonValue, 50, "\"temp\":%s,\"hum\":%s", temperature, humidity);
   strcpy(text, "");
   return true;
 #else
