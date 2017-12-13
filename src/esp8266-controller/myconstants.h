@@ -5,7 +5,7 @@
 /* 
  *  Framework version
  */
-#define SW_VERSION "1.0.0.a1"
+#define SW_VERSION "1.0.0"
 
 /* 
  * Optional external libraries
