@@ -83,8 +83,24 @@ void mqttReconnect() {
   }
 }
 
-
-
+/**
+ * Check that WIFI is connected
+ * If not connected, wait untill connected
+ */
+static void wifiReconnect() {
+  if(WiFi.status() == WL_CONNECTED) return;
+  while (WiFi.status() != WL_CONNECTED) {
+    digitalWrite(STATUSLED, OUTPUT_HIGH);
+    delay(250);
+    digitalWrite(STATUSLED, OUTPUT_LOW);
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.print("My ip is ");
+  Serial.println(WiFi.localIP());
+}
 
 
 /**
@@ -106,17 +122,7 @@ void setup() {
   Serial.println(NETWORK_SSID);
   
   WiFi.begin(NETWORK_SSID, NETWORK_PASSWORD);  
-  while (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(STATUSLED, OUTPUT_HIGH);
-    delay(250);
-    digitalWrite(STATUSLED, OUTPUT_LOW);
-    delay(250);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.print("My ip is ");
-  Serial.println(WiFi.localIP());
+  wifiReconnect();
   Serial.println("");
   Serial.println("Start MQTT");
   mqttClient.setServer(MQTT_SERVER, 1883);
@@ -130,6 +136,7 @@ void setup() {
  * Main loop
  */
 void loop() {
+  wifiReconnect();
   if (!mqttClient.connected()) {
     mqttReconnect();
   }
