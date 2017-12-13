@@ -12,11 +12,6 @@
 #include "IOHandler.h"
 
 /*
- * Constants
- */
-const char* SW_VERSION = "1.0.0.a1";
-
-/*
  * Parameters to change
  * Change these parameters into your values
  */
@@ -24,7 +19,7 @@ const char* NETWORK_SSID = "NetworkSSID";
 const char* NETWORK_PASSWORD = "NetworkPassword";
 const char* MQTT_SERVER = "ipOfMqttServer";
 const char* MQTT_TOPIC_STATUS_BASE = "topic_to_use_as_base";
-const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control/+"; // Subscribe to all sub topics
+const char* MQTT_TOPIC_SUBSCRIBE = "topic_to_use/control";
 
 const bool USE_NTP = true; // Set to false to not sync to UTC time
 
@@ -35,10 +30,7 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 IOHandler ioHandler;
 MessageHandler messageHandler(&mqttClient, MQTT_TOPIC_STATUS_BASE, &ioHandler);
-long lastTimeStatusToMqtt = 0;
-char genericString[150];
-String chipIdAsString;
-const char *chipId;
+
 
 /**
  * Configure all input and outputs prior to calling messagehandler.setup()
@@ -75,9 +67,9 @@ void mqttReconnect() {
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     String clientId = String("ESP8266 ");
-    clientId.concat(chipId);
+    clientId.concat(String(ESP.getChipId()));
     // Attempt to connect
-    if (mqttClient.connect("ESP8266 Client")) {
+    if (mqttClient.connect(clientId.c_str())) {
       Serial.println("connected");      
       mqttClient.subscribe(MQTT_TOPIC_SUBSCRIBE);
     } else {
@@ -91,41 +83,9 @@ void mqttReconnect() {
   }
 }
 
-/**
- * Format and send an alive message to the MQTT broker
- */
-void sendAliveMessage(long timeNow) {
-  IPAddress myIp = WiFi.localIP();
-  snprintf (genericString, 150, "{%s\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", 
-    getCurrentUtcTimeAsJsonField(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3]);
-  String topic = String(MQTT_TOPIC_STATUS_BASE);
-  topic.concat("/alive");
-  Serial.print("Publish message to ");
-  Serial.print(topic.c_str());
-  Serial.print(": ");
-  Serial.println(genericString);    
-  if(mqttClient.publish(topic.c_str(), genericString) == 0) {
-    Serial.println("Failed to publish to MQTT. Too long message?");
-  }
-  digitalWrite(STATUSLED, OUTPUT_HIGH);
-  delay(100);
-  digitalWrite(STATUSLED, OUTPUT_LOW);
-}
 
-void sendAboutMessage() {
-  IPAddress myIp = WiFi.localIP();
-  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%s\",\"version\":\"%s\"}", 
-    chipId, SW_VERSION);
-  String topic = String(MQTT_TOPIC_STATUS_BASE);
-  topic.concat("/about");
-  Serial.print("Publish message to ");
-  Serial.print(topic.c_str());
-  Serial.print(": ");
-  Serial.println(genericString);    
-  if(mqttClient.publish(topic.c_str(), genericString) == 0) {
-    Serial.println("Failed to publish to MQTT. Too long message?");
-  }
-}
+
+
 
 /**
  * Setup application
@@ -134,16 +94,13 @@ void setup() {
   Serial.begin(115200);
   delay(10);
 
-  chipIdAsString = String(ESP.getChipId());
-  chipId = chipIdAsString.c_str();
-
   pinMode(STATUSLED, OUTPUT);
   digitalWrite(STATUSLED, OUTPUT_LOW);
 
   // Connect to WiFi network
   Serial.println();
   Serial.print("Chip ID ");
-  Serial.println(chipId);
+  Serial.println(ESP.getChipId());
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(NETWORK_SSID);
@@ -178,18 +135,7 @@ void loop() {
   }
   mqttClient.loop();
   updateTimeController();
-  long now = millis();
-  if ((abs(now - lastTimeStatusToMqtt) > 30000) || (lastTimeStatusToMqtt == 0)) {
-    static int aboutCounter = 10;
-    lastTimeStatusToMqtt = now;
-    sendAliveMessage(now);
-    aboutCounter++;
-    if(aboutCounter >= 10) {
-      aboutCounter = 0;
-      sendAboutMessage();
-    }
-  } else if(!messageHandler.executeSchedulesRequests()) {
-    delay(100);
-  }  
+  messageHandler.loop();
+  delay(100); 
 }
 

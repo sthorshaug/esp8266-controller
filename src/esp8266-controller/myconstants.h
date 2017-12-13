@@ -3,6 +3,11 @@
 #include <Arduino.h>
 
 /* 
+ *  Framework version
+ */
+#define SW_VERSION "1.0.0.a1"
+
+/* 
  * Optional external libraries
  * Uncomment the wanted dependencies
  */

@@ -35,12 +35,16 @@ class MessageHandler {
     bool decodeRequest(char* requestAsString, MessageHandler::MyRequest *parsed);
     MyRequestType decodeRequestType(const char *req);
     void sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues);
+    void sendAliveMessage();
+    void sendAboutMessage();
     
   public:
     MessageHandler(PubSubClient *mqtt, const char* mqttBaseTopic, IOHandler *ioHandler);
     void handleRequest(char* topic, byte* payloadAsBytes, unsigned int length);
     void handleRequest(MessageHandler::MyRequest *req);
     bool addScheduledRequest(MyRequest *req, unsigned long interval);
-    bool executeSchedulesRequests();
+    bool executeScheduledRequests();
+    void loop();
+    
 };
 #endif

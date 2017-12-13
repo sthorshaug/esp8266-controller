@@ -4,8 +4,11 @@
  * 
  * @author Steinar Thorshaug
  */
+#include <ESP8266WiFi.h>
 #include "MessageHandler.h"
 #include "TimeController.h"
+
+static char genericString[151];
 
 /**
  * Constructor
@@ -38,7 +41,7 @@ bool MessageHandler::addScheduledRequest(MyRequest *req, unsigned long interval)
 /**
  * Check if any scheduled requests are pending
  */
-bool MessageHandler::executeSchedulesRequests() {
+bool MessageHandler::executeScheduledRequests() {
   ScheduledItem *item = NULL;
   bool returnval = false;
   unsigned long timenow = millis();
@@ -54,6 +57,44 @@ bool MessageHandler::executeSchedulesRequests() {
   }
 
   return returnval;
+}
+
+/**
+ * Format and send an alive message to the MQTT broker
+ */
+void MessageHandler::sendAliveMessage() {
+  IPAddress myIp = WiFi.localIP();
+  snprintf (genericString, 150, "{%s\"rssi\":%ld,\"ip\":\"%d.%d.%d.%d\"}", 
+    getCurrentUtcTimeAsJsonField(), WiFi.RSSI(), myIp[0], myIp[1], myIp[2], myIp[3]);
+  String topic = String(this->mqttBaseTopic);
+  topic.concat("/alive");
+  Serial.print("Publish message to ");
+  Serial.print(topic.c_str());
+  Serial.print(": ");
+  Serial.println(genericString);    
+  if(this->mqtt->publish(topic.c_str(), genericString) == 0) {
+    Serial.println("Failed to publish alive message to MQTT. Too long message?");
+  }
+  digitalWrite(STATUSLED, OUTPUT_HIGH);
+  delay(100);
+  digitalWrite(STATUSLED, OUTPUT_LOW);
+}
+
+/**
+ * Send about-message to MQTT broker
+ */
+void MessageHandler::sendAboutMessage() {
+  snprintf (genericString, 150, "{\"brand\":\"ESP8266\",\"id\":\"%ld\",\"version\":\"%s\"}", 
+    /*chipId*/ESP.getChipId(), SW_VERSION);
+  String topic = String(this->mqttBaseTopic);
+  topic.concat("/about");
+  Serial.print("Publish message to ");
+  Serial.print(topic.c_str());
+  Serial.print(": ");
+  Serial.println(genericString);    
+  if(this->mqtt->publish(topic.c_str(), genericString) == 0) {
+    Serial.println("Failed to publish to MQTT. Too long message?");
+  }
 }
 
 /*
@@ -161,10 +202,9 @@ MessageHandler::MyRequestType MessageHandler::decodeRequestType(const char *req)
  * Send a status report to the MQTT broker
  */
 void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool status, const char *text, const char *jsonValues) {
-  char myString[151];
   char respTopic[20];
   
-  snprintf (myString, 150, "{%s\"req\":%d,\"status\":%s,\"message\":\"%s\"}", 
+  snprintf (genericString, 150, "{%s\"req\":%d,\"status\":%s,\"message\":\"%s\"}", 
     getCurrentUtcTimeAsJsonField(), req->req, status ? "true" : "false", text);
   String topic = String(this->mqttBaseTopic);
   snprintf (respTopic, 20, "/response/%d", req->pin);
@@ -172,24 +212,44 @@ void MessageHandler::sendMqttResponse(MessageHandler::MyRequest *req, bool statu
   Serial.print("Publish message to ");
   Serial.print(topic.c_str());
   Serial.print(": ");
-  Serial.println(myString);    
-  if(this->mqtt->publish(topic.c_str(), myString) == 0) {
+  Serial.println(genericString);    
+  if(this->mqtt->publish(topic.c_str(), genericString) == 0) {
     Serial.println("MessageHandler: Failed to publish to mqtt. Too long message?");
   }
 
   if(jsonValues[0] != 0) {
-    snprintf (myString, 150, "{\"time\":%ld,%s}", getCurrentUtcTime(), jsonValues);
+    snprintf (genericString, 150, "{\"time\":%ld,%s}", getCurrentUtcTime(), jsonValues);
     topic = String(this->mqttBaseTopic);
     snprintf (respTopic, 20, "/values/%d", req->pin);
     topic.concat(respTopic);
     Serial.print("Publish message to ");
     Serial.print(topic.c_str());
     Serial.print(": ");
-    Serial.println(myString);    
-    if(this->mqtt->publish(topic.c_str(), myString) == 0) {
+    Serial.println(genericString);    
+    if(this->mqtt->publish(topic.c_str(), genericString) == 0) {
       Serial.println("MessageHandler: Failed to publish to mqtt. Too long message?");
     }
   }
 }
 
+/**
+ * Loop function
+ */
+void MessageHandler::loop() {
+  static long lastTimeStatusToMqtt = 0;
+  long now = millis();
+  if ((abs(now - lastTimeStatusToMqtt) > 30000) || (lastTimeStatusToMqtt == 0)) {
+    static int aboutCounter = 10;
+    lastTimeStatusToMqtt = now;
+    this->sendAliveMessage();
+    aboutCounter++;
+    if(aboutCounter >= 10) {
+      aboutCounter = 0;
+      this->sendAboutMessage();
+    }
+  }
+
+  /* Check if time to send something */
+  this->executeScheduledRequests();
+}
 
